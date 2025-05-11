@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const animatedElement = document.querySelector('.animated-element');
     const usernameInput = document.getElementById('username');
     const body = document.body;
+    const container = document.querySelector('.container');
+
+    // Animation states
+    const animations = ['animated-pulse', 'animated-bounce', 'animated-rotate', 'animated-slide'];
+    let currentAnimationIndex = 0;
 
     // Load saved preferences
     loadPreferences();
@@ -14,36 +19,89 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Animation Trigger
     animateBtn.addEventListener('click', function() {
-        // Toggle between animations
-        if (animatedElement.classList.contains('animated-pulse')) {
-            animatedElement.classList.remove('animated-pulse');
-            animatedElement.classList.add('animate-bounce');
-        } else if (animatedElement.classList.contains('animated-bounce')) {
-            animatedElement.classList.remove('animated-bounce');
-        } else {
-            animatedElement.classList.add('animate-pulse');
-        }
+        // Remove all animation classes
+        animations.forEach(anim => animatedElement.classList.remove(anim));
+        
+        // Cycle to next animation
+        currentAnimationIndex = (currentAnimationIndex + 1) % animations.length;
+        animatedElement.classList.add(animations[currentAnimationIndex]);
+        
+        // Update button text
+        animateBtn.textContent = `Animation: ${animations[currentAnimationIndex].replace('animated-', '')}`;
         
         // Save animation state
-        localStorage.setItem('animationState', animatedElement.className);
+        saveAnimationState();
     });
 
-    // Username persistence
+    // Username persistence with debounce
+    let usernameTimeout;
     usernameInput.addEventListener('input', function() {
-        localStorage.setItem('username', this.value);
+        clearTimeout(usernameTimeout);
+        usernameTimeout = setTimeout(() => {
+            localStorage.setItem('username', this.value);
+            showNotification('Username saved!');
+        }, 500);
     });
 
     // Theme toggle function
     function toggleTheme() {
         body.classList.toggle('dark-mode');
-        localStorage.setItem('darkMode', body.classList.contains('dark-mode'));
+        const isDarkMode = body.classList.contains('dark-mode');
+        localStorage.setItem('darkMode', isDarkMode);
+        
+        // Update container theme
+        container.classList.toggle('dark-mode', isDarkMode);
+        
+        // Update button text
+        themeBtn.textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+        
+        showNotification(`Switched to ${isDarkMode ? 'dark' : 'light'} mode`);
+    }
+
+    // Save animation state
+    function saveAnimationState() {
+        const animationClasses = Array.from(animatedElement.classList)
+            .filter(className => className.startsWith('animated-'))
+            .join(' ');
+        localStorage.setItem('animationState', animationClasses);
+        localStorage.setItem('currentAnimationIndex', currentAnimationIndex);
+    }
+
+    // Show notification
+    function showNotification(message) {
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Add styles for notification
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4ecdc4;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+        `;
+
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 
     // Load saved preferences
     function loadPreferences() {
         // Load theme
-        if (localStorage.getItem('darkMode') === 'true') {
+        const isDarkMode = localStorage.getItem('darkMode') === 'true';
+        if (isDarkMode) {
             body.classList.add('dark-mode');
+            container.classList.add('dark-mode');
+            themeBtn.textContent = 'Light Mode';
         }
 
         // Load username
@@ -54,8 +112,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Load animation state
         const savedAnimation = localStorage.getItem('animationState');
+        const savedIndex = localStorage.getItem('currentAnimationIndex');
         if (savedAnimation) {
             animatedElement.className = 'animated-element ' + savedAnimation;
+            currentAnimationIndex = parseInt(savedIndex) || 0;
+            animateBtn.textContent = `Animation: ${animations[currentAnimationIndex].replace('animated-', '')}`;
         }
     }
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.altKey) {
+            switch(e.key) {
+                case 't':
+                    toggleTheme();
+                    break;
+                case 'a':
+                    animateBtn.click();
+                    break;
+            }
+        }
+    });
 });
